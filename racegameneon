@@ -1,0 +1,486 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Neon Turbo Racer - Daylight Edition</title>
+    <style>
+        :root {
+            --bg-color: #f1f5f9; /* Light Slate Background */
+            --road-color: #334155; /* Asphalt Road */
+            --line-color: #64748b;
+            --scenery-color: #e0f2fe; /* Light Sky/Tech Grid Field */
+            --ui-color: #1e293b; /* Dark text for light mode */
+            --accent-neon: #0284c7; /* Vibrant Blue */
+            --danger-neon: #e11d48; /* Vibrant Red/Pink */
+            --player-car-base: #e11d48;
+            --player-car-light: #fb7185;
+            --opponent-car-base: #0284c7;
+            --opponent-car-light: #7dd3fc;
+        }
+
+        * {
+            box-sizing: border-box;
+            user-select: none;
+            -webkit-user-select: none;
+            touch-action: manipulation;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            background: var(--bg-color);
+            font-family: 'Courier New', Courier, monospace;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            overflow: hidden;
+            color: var(--ui-color);
+        }
+
+        /* Landscape Widescreen Container with Light Theme Frame */
+        #game-container {
+            position: relative;
+            width: 100%;
+            max-width: 750px;
+            height: 450px;
+            background: var(--road-color);
+            overflow: hidden;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1), 0 0 15px rgba(2, 132, 199, 0.15);
+            border: 2px solid #cbd5e1;
+            border-radius: 14px;
+        }
+
+        /* Centered Road */
+        .road {
+            position: absolute;
+            width: 48%;
+            height: 100%;
+            left: 26%;
+            background: var(--road-color);
+            border-left: 3px solid #94a3b8;
+            border-right: 3px solid #94a3b8;
+            box-shadow: inset 0 0 20px rgba(0, 0, 0, 0.3);
+            overflow: hidden;
+            z-index: 2;
+        }
+
+        .road-stripes {
+            position: absolute;
+            width: 100%;
+            height: 200%;
+            top: -100%;
+            background-image: linear-gradient(to bottom, #ffffff 40%, transparent 40%);
+            background-size: 4px 70px;
+            animation: moveRoad 0.45s linear infinite;
+            opacity: 0.8;
+        }
+
+        @keyframes moveRoad {
+            0% { transform: translateY(0); }
+            100% { transform: translateY(70px); }
+        }
+
+        /* Light Mode Side Scenery with Grid */
+        .side-scenery {
+            position: absolute;
+            width: 26%;
+            height: 100%;
+            background: linear-gradient(180deg, #e0f2fe, #bae6fd);
+            overflow: hidden;
+            z-index: 1;
+        }
+        .side-scenery.right { right: 0; }
+
+        .cyber-grid {
+            position: absolute;
+            width: 200%;
+            height: 200%;
+            top: -50%;
+            left: -50%;
+            background-image: 
+                linear-gradient(to right, rgba(2, 132, 199, 0.12) 1px, transparent 1px),
+                linear-gradient(to bottom, rgba(2, 132, 199, 0.12) 1px, transparent 1px);
+            background-size: 30px 30px;
+            transform: perspective(300px) rotateX(45deg);
+            animation: moveGrid 2s linear infinite;
+        }
+
+        @keyframes moveGrid {
+            0% { transform: perspective(300px) rotateX(45deg) translateY(0); }
+            100% { transform: perspective(300px) rotateX(45deg) translateY(30px); }
+        }
+
+        /* Cars styling */
+        .car {
+            position: absolute;
+            width: 44px;
+            height: 82px;
+            border-radius: 8px 8px 6px 6px;
+            z-index: 10;
+            transition: transform 0.1s ease-out;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.25);
+        }
+
+        .car::before {
+            content: '';
+            position: absolute;
+            top: 4px; left: 10%; width: 80%; height: 40%;
+            background: linear-gradient(to bottom, rgba(255,255,255,0.4) 0%, rgba(255,255,255,0) 100%);
+            border-radius: 6px;
+        }
+
+        .window {
+            position: absolute;
+            background: #0f172a;
+            border: 2px solid rgba(255,255,255,0.4);
+            border-radius: 4px;
+        }
+        
+        .light { position: absolute; border-radius: 2px; }
+
+        .player-car {
+            background: linear-gradient(180deg, var(--player-car-light) 0%, var(--player-car-base) 40%, #881337 100%);
+            bottom: 70px;
+            left: 350px;
+            border: 1px solid #fff;
+        }
+
+        .player-car .window {
+            top: 15px; left: 7px; width: 28px; height: 28px;
+        }
+
+        .player-car .light.front {
+            top: 3px; left: 4px; right: 4px; height: 5px;
+            background: #fff;
+            box-shadow: 0 0 6px #fff;
+        }
+        .player-car .light.tail {
+            bottom: 3px; left: 6px; right: 6px; height: 4px;
+            background: #fff;
+        }
+
+        .tire {
+            position: absolute; width: 5px; height: 15px; background: #0f172a;
+            border-radius: 2px;
+            z-index: -1;
+        }
+        .t-fl { top: 12px; left: -4px; }
+        .t-fr { top: 12px; right: -4px; }
+        .t-rl { bottom: 12px; left: -4px; }
+        .t-rr { bottom: 12px; right: -4px; }
+
+        .obstacle {
+            position: absolute;
+            width: 44px;
+            height: 82px;
+            border-radius: 8px 8px 6px 6px;
+            z-index: 10;
+            background: linear-gradient(180deg, var(--opponent-car-light) 0%, var(--opponent-car-base) 40%, #0369a1 100%);
+            top: -120px;
+            border: 1px solid rgba(255,255,255,0.6);
+        }
+
+        .obstacle::before {
+            content: '';
+            position: absolute;
+            top: 4px; left: 10%; width: 80%; height: 40%;
+            background: linear-gradient(to bottom, rgba(255,255,255,0.4) 0%, rgba(255,255,255,0) 100%);
+            border-radius: 6px;
+        }
+
+        .obstacle .window {
+            bottom: 18px; left: 7px; width: 28px; height: 26px;
+        }
+
+        .obstacle .light.front {
+            bottom: 3px; left: 4px; right: 4px; height: 6px;
+            background: var(--danger-neon);
+            border-radius: 2px 2px 4px 4px;
+            box-shadow: 0 0 8px var(--danger-neon);
+        }
+
+        #ui-layer {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            pointer-events: none; z-index: 20;
+            display: flex; flex-direction: column;
+        }
+
+        .score-board {
+            margin-top: 15px;
+            text-align: center;
+            font-size: 22px;
+            font-weight: bold;
+            color: #ffffff;
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.4);
+            letter-spacing: 2px;
+        }
+
+        .screen {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(241, 245, 249, 0.95);
+            display: flex; flex-direction: column;
+            justify-content: center; align-items: center;
+            z-index: 30; text-align: center; padding: 30px;
+        }
+
+        h1 {
+            font-size: 34px;
+            margin: 0 0 8px 0;
+            color: var(--accent-neon);
+            text-transform: uppercase;
+        }
+
+        p { font-size: 13px; color: #475569; margin-bottom: 20px; font-weight: bold; }
+
+        .btn {
+            background: var(--accent-neon);
+            border: none;
+            color: #ffffff;
+            padding: 12px 35px;
+            font-size: 16px;
+            font-weight: bold;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            box-shadow: 0 4px 12px rgba(2, 132, 199, 0.3);
+        }
+
+        .btn:hover {
+            background: #0369a1;
+            transform: translateY(-2px);
+        }
+
+        .controls-hint {
+            margin-top: 20px;
+            font-size: 11px;
+            color: #64748b;
+            border: 1px solid #cbd5e1;
+            padding: 8px;
+            background: rgba(255,255,255,0.7);
+            border-radius: 4px;
+            line-height: 1.4;
+        }
+
+        .touch-controls {
+            position: absolute; bottom: 0; left: 0; width: 100%; height: 65px;
+            display: flex; z-index: 25;
+            background: rgba(241, 245, 249, 0.9);
+            border-top: 1px solid #cbd5e1;
+        }
+        .control-btn {
+            flex: 1; height: 100%;
+            background: transparent;
+            display: flex; justify-content: center; align-items: center;
+            color: #334155; font-size: 13px; font-weight: bold;
+        }
+        .control-btn:active, .control-btn.active {
+            background: rgba(2, 132, 199, 0.15);
+            color: var(--accent-neon);
+        }
+        .control-btn.left { border-right: 1px solid #cbd5e1; }
+    </style>
+</head>
+<body>
+
+    <div id="game-container">
+        <!-- Light Mode Scenery -->
+        <div class="side-scenery left">
+            <div class="cyber-grid"></div>
+        </div>
+        <div class="road">
+            <div class="road-stripes" id="stripes"></div>
+        </div>
+        <div class="side-scenery right">
+            <div class="cyber-grid"></div>
+        </div>
+
+        <div class="car player-car" id="player">
+            <div class="tire t-fl"></div>
+            <div class="tire t-fr"></div>
+            <div class="tire t-rl"></div>
+            <div class="tire t-rr"></div>
+            <div class="window"></div>
+            <div class="light front"></div>
+            <div class="light tail"></div>
+        </div>
+
+        <div id="ui-layer">
+            <div class="score-board"><span id="score">000000</span></div>
+        </div>
+
+        <div class="touch-controls">
+            <div class="control-btn left" id="btn-left">◀ STEER LEFT</div>
+            <div class="control-btn right" id="btn-right">STEER RIGHT ▶</div>
+        </div>
+
+        <div id="start-screen" class="screen">
+            <h1>Turbo Racer</h1>
+            <p>AVOID THE OPPONENTS</p>
+            <button class="btn" onclick="startGame()">Initialize</button>
+            <div class="controls-hint">
+                Daylight Layout | Touch, Mouse, or Keyboard (Arrows / A & D)
+            </div>
+        </div>
+
+        <div id="gameover-screen" class="screen" style="display: none;">
+            <h1>CRASHED</h1>
+            <p>FINAL SCORE: <span id="final-score">0</span></p>
+            <button class="btn" onclick="startGame()">Reboot</button>
+        </div>
+    </div>
+
+    <script>
+        const player = document.getElementById('player');
+        const gameContainer = document.getElementById('game-container');
+        const scoreDisplay = document.getElementById('score');
+        const finalScoreDisplay = document.getElementById('final-score');
+        const startScreen = document.getElementById('start-screen');
+        const gameoverScreen = document.getElementById('gameover-screen');
+        const stripes = document.getElementById('stripes');
+        
+        const btnLeft = document.getElementById('btn-left');
+        const btnRight = document.getElementById('btn-right');
+
+        let isPlaying = false;
+        let score = 0;
+        let playerX = 350;
+        const playerSpeed = 7;
+        let obstacles = [];
+        let gameInterval;
+        let obstacleSpawnTimer = 0;
+        
+        const keys = { ArrowLeft: false, ArrowRight: false, KeyA: false, KeyD: false, TouchLeft: false, TouchRight: false };
+
+        window.addEventListener('keydown', (e) => { if (keys.hasOwnProperty(e.code)) keys[e.code] = true; });
+        window.addEventListener('keyup', (e) => { if (keys.hasOwnProperty(e.code)) keys[e.code] = false; });
+
+        function setupTouch(element, keyName) {
+            element.addEventListener('touchstart', (e) => {
+                e.preventDefault();
+                keys[keyName] = true;
+                element.classList.add('active');
+            });
+            element.addEventListener('touchend', (e) => {
+                e.preventDefault();
+                keys[keyName] = false;
+                element.classList.remove('active');
+            });
+            element.addEventListener('mousedown', () => { keys[keyName] = true; element.classList.add('active'); });
+            element.addEventListener('mouseup', () => { keys[keyName] = false; element.classList.remove('active'); });
+            element.addEventListener('mouseleave', () => { keys[keyName] = false; element.classList.remove('active'); });
+        }
+
+        setupTouch(btnLeft, 'TouchLeft');
+        setupTouch(btnRight, 'TouchRight');
+
+        function startGame() {
+            startScreen.style.display = 'none';
+            gameoverScreen.style.display = 'none';
+            obstacles.forEach(obs => obs.element.remove());
+            obstacles = [];
+            score = 0;
+            
+            const roadLeft = gameContainer.offsetWidth * 0.26;
+            const roadWidth = gameContainer.offsetWidth * 0.48;
+            playerX = roadLeft + (roadWidth / 2) - 22;
+
+            scoreDisplay.innerText = String(score).padStart(6, '0');
+            isPlaying = true;
+            stripes.style.animationPlayState = 'running';
+            
+            if (!gameInterval) {
+                gameInterval = setInterval(updateGame, 1000 / 60);
+            }
+        }
+
+        function spawnObstacle() {
+            const roadLeft = gameContainer.offsetWidth * 0.26;
+            const roadWidth = gameContainer.offsetWidth * 0.48;
+            const randomX = roadLeft + Math.random() * (roadWidth - 44);
+            
+            const obsEl = document.createElement('div');
+            obsEl.className = 'obstacle';
+            obsEl.style.left = randomX + 'px';
+            obsEl.style.top = '-100px';
+
+            obsEl.innerHTML = `
+                <div class="tire t-fl"></div>
+                <div class="tire t-fr"></div>
+                <div class="tire t-rl"></div>
+                <div class="tire t-rr"></div>
+                <div class="window"></div>
+                <div class="light front"></div>
+            `;
+
+            gameContainer.appendChild(obsEl);
+
+            obstacles.push({
+                element: obsEl,
+                x: randomX,
+                y: -100,
+                speed: 4.5 + Math.random() * 3.5
+            });
+        }
+
+        function updateGame() {
+            if (!isPlaying) return;
+
+            const moveLeft = keys.ArrowLeft || keys.KeyA || keys.TouchLeft;
+            const moveRight = keys.ArrowRight || keys.KeyD || keys.TouchRight;
+
+            const roadLeft = gameContainer.offsetWidth * 0.26;
+            const roadRight = gameContainer.offsetWidth * 0.74;
+
+            if (moveLeft && playerX > roadLeft) {
+                playerX -= playerSpeed;
+            }
+            if (moveRight && playerX < roadRight - 44) {
+                playerX += playerSpeed;
+            }
+            player.style.left = playerX + 'px';
+
+            obstacleSpawnTimer++;
+            if (obstacleSpawnTimer > 65) {
+                spawnObstacle();
+                obstacleSpawnTimer = 0;
+            }
+
+            for (let i = obstacles.length - 1; i >= 0; i--) {
+                let obs = obstacles[i];
+                obs.y += obs.speed;
+                obs.element.style.top = obs.y + 'px';
+
+                const playerRect = { x: playerX, y: gameContainer.offsetHeight - 155, width: 44, height: 82 };
+                const obsRect = { x: obs.x, y: obs.y, width: 44, height: 82 };
+
+                if (
+                    playerRect.x < obsRect.x + obsRect.width &&
+                    playerRect.x + playerRect.width > obsRect.x &&
+                    playerRect.y < obsRect.y + obsRect.height &&
+                    playerRect.y + playerRect.height > obsRect.y
+                ) {
+                    gameOver();
+                }
+
+                if (obs.y > gameContainer.offsetHeight) {
+                    obs.element.remove();
+                    obstacles.splice(i, 1);
+                    score += 10;
+                    scoreDisplay.innerText = String(score).padStart(6, '0');
+                }
+            }
+        }
+
+        function gameOver() {
+            isPlaying = false;
+            stripes.style.animationPlayState = 'paused';
+            finalScoreDisplay.innerText = score;
+            gameoverScreen.style.display = 'flex';
+        }
+    </script>
+</body>
+</html>
